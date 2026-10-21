@@ -97,7 +97,7 @@ if [ "$DO_ENV" -eq 1 ]; then
   elif [ -f "$ROOT/.env.example" ]; then
     cp "$ROOT/.env.example" "$ROOT/.env"
     chmod 600 "$ROOT/.env"
-    say ".env oluşturuldu (.env.example'dan). API anahtarını düzenleyin."
+    say ".env oluşturuldu (.env.example'dan; yalnızca sağlayıcı dışı ayarlar)."
   else
     warn ".env.example bulunamadı; .env atlandı."
   fi
@@ -139,8 +139,7 @@ Kurulum tamam. Şimdi:
   bashcli "şunu yap"      # tek seferlik görev
   bashcli -w /başka/yol   # farklı workspace
 
-API anahtarı gerekli. Şu sırayla ayarlayın:
-  1) Proje kökündeki .env dosyasını düzenleyin (anahtar, model, PROVIDER)
-  2) Ya da ajanı çalıştırıp /provider sihirbazını kullanın
-     (anahtar ~/.bashcli/providers.json içine kaydedilir)
+API anahtarı gerekli: ajanı çalıştırıp /provider sihirbazını kullanın.
+Sağlayıcı, model ve anahtar yalnızca ~/.bashcli/providers.json içine
+kaydedilir (.env'e yazılmaz; .env yalnızca AGENT_MODE gibi ayarlar içindir).
 EOF

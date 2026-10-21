@@ -57,19 +57,21 @@ bashcli -w /başka/yol   # farklı workspace
 
 ```bash
 npm install
-cp .env.example .env   # veya .env'i kendiniz doldurun
+cp .env.example .env   # isteğe bağlı: yalnızca AGENT_MODE gibi ayarlar
 npm run cli            # yalnızca bu dizinde çalıştırmak için
+# ilk çalıştırmada /provider ile sağlayıcı + API anahtarı seçin
 ```
 
-`.env` örneği:
+`.env` yalnızca **sağlayıcı dışı** ayarlar içindir:
 
 ```dotenv
-PROVIDER=zenmux
-AGENT_MODEL=openai/z-ai/glm-4.7-flash-free
-ZENMUX_API_KEY=sk-...
-ZENMUX_API_BASE=https://zenmux.ai/api/v1
 AGENT_MODE=build
+AGENT_MAX_TOKENS=4096
+AGENT_NUM_RETRIES=5
 ```
+
+> Sağlayıcı, model ve API anahtarı `.env`'e **yazılmaz**; yalnızca
+> `~/.bashcli/providers.json` dosyasında saklanır (aşağıya bakın).
 
 ## Global kurulum (`bashcli` komutu)
 
@@ -82,14 +84,17 @@ yeniden yazmak isterseniz (bağımlılık kurmadan):
 
 ### Ortam değişkenleri nasıl yüklenir?
 
-İki `.env` sırayla yüklenir (dotenv `override:false` — **önce yüklenen kazanır**):
+İki `.env` sırayla yüklenir (**önce tanımlı olan değer kazanır**):
 
-1. **Ajanın kendi `.env`'i** → `PROVIDER`, `AGENT_MODEL`, API anahtarları
+1. **Ajanın kendi `.env`'i** → `AGENT_MODE`, `AGENT_MAX_TOKENS`, ...
 2. **Çalışılan projenin `.env`'i** → proje-özeli ek ayarlar
 
-Böylece API anahtarı her zaman bulunur, hedef proje kendi ayarlarını
-ekleyebilir ama ajanın ayarlarını ezemez. `/provider` sihirbazı ayarları
-her zaman **ajanın** `.env`'ine yazar.
+**Sağlayıcı değişkenleri (`PROVIDER`, `AGENT_MODEL`, `*_API_KEY`, `*_API_BASE`,
+`OPENAI_BASE_URL`, ...) `.env` dosyalarından yüklenmez**; `.env` içinde olsalar
+bile yok sayılır. Sağlayıcı bilgisi yalnızca `~/.bashcli/providers.json`'dan
+(`/provider` sihirbazı) gelir. Shell'de `export` edilmiş değişkenler ise
+yedek olarak okunmaya devam eder. Bu, güvenilmeyen bir projenin `.env`'inin
+base URL'i değiştirip anahtarı başka bir sunucuya yönlendirmesini de önler.
 
 ### Sağlayıcı doğrulaması
 
@@ -108,7 +113,7 @@ Ayarlar:
 | `AGENT_NUM_RETRIES` | `5` | Geçici hatalarda (429/5xx) yeniden deneme sayısı. |
 | `AGENT_DEBUG` | — | `1` ise LLM hatalarını stderr'e yazar. |
 | `BASHCLI_HOME` | ev dizini | Kullanıcı ayarlarının (API anahtarı) tutulduğu kök dizin. Testler bunu geçici bir dizine yönlendirir. |
-| `BASHCLI_ENV` | ajan kökündeki `.env` | Ajanın kendi `.env` dosyasının yolu. Testler bunu geçici bir dosyaya yönlendirir. |
+| `BASHCLI_ENV` | ajan kökündeki `.env` | Ajanın kendi `.env` dosyasının yolu (yalnızca sağlayıcı dışı ayarlar). Testler bunu geçici bir dosyaya yönlendirir. |
 
 ### Sağlayıcı taban URL'leri
 

@@ -99,10 +99,9 @@ function helpText(): string {
 
 const ARGS = parseArgs(process.argv.slice(2));
 
-// Ortam değişkenleri: önce ajanın kendi .env'i (PROVIDER, AGENT_MODEL, API
-// anahtarları), sonra çalışılan projenin .env'i (proje-özeli ek ayarlar).
-// Sıra önemlidir: dotenv override:false olduğu için önce yüklenen kazanır,
-// yani ajanın ayarları hedef proje tarafından ezilmez.
+// Ortam değişkenleri: önce ajanın kendi .env'i, sonra çalışılan projenin
+// .env'i (yalnızca sağlayıcı DIŞI ayarlar; sağlayıcı bilgisi sadece
+// ~/.bashcli/providers.json'dan gelir). Önce tanımlı olan değer kazanır.
 loadAgentEnv();
 loadWorkspaceEnv();
 

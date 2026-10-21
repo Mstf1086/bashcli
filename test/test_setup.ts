@@ -29,14 +29,15 @@ if (!process.env.BASHCLI_ENV) {
   const tmpEnv = join(process.env.BASHCLI_HOME, "agent.env");
   writeFileSync(
     tmpEnv,
-    [
-      "PROVIDER=zenmux",
-      "AGENT_MODEL=openai/test-model",
-      "ZENMUX_API_KEY=test-key-0000000000",
-      "ZENMUX_API_BASE=https://zenmux.ai/api/v1",
-      "",
-    ].join("\n"),
+    // .env yalnızca sağlayıcı dışı ayarlar içerir (sağlayıcı değişkenleri .env'den yüklenmez).
+    ["AGENT_MODE=build", ""].join("\n"),
     "utf-8",
   );
   process.env.BASHCLI_ENV = tmpEnv;
+
+  // Sağlayıcı değerleri: gerçek bir shell'de export edilmiş gibi (dosyadan değil).
+  process.env.PROVIDER ??= "zenmux";
+  process.env.AGENT_MODEL ??= "openai/test-model";
+  process.env.ZENMUX_API_KEY ??= "test-key-0000000000";
+  process.env.ZENMUX_API_BASE ??= "https://zenmux.ai/api/v1";
 }

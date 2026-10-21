@@ -1,6 +1,6 @@
 // LLM sağlayıcı kayıt defteri: Python providers.py'nin TS karşılığı.
-// Sağlayıcı seçimi + model listeleme + .env kaydı.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+// Sağlayıcı seçimi + model listeleme. Sağlayıcı ayarları yalnızca
+// ~/.bashcli/providers.json dosyasında saklanır (.env'e yazılmaz/okunmaz).
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readUserProvider, saveUserProvider } from "./user-config.js";
@@ -9,7 +9,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT_ROOT = join(HERE, "..");
 
 /**
- * Ajanın kendi .env dosyasının yolu.
+ * Ajanın kendi .env dosyasının yolu (yalnızca sağlayıcı DIŞI ayarlar için:
+ * AGENT_MODE, AGENT_MAX_TOKENS, ...; sağlayıcı değişkenleri .env'den yüklenmez).
  *
  * Varsayılan: ajan kökündeki `.env` (kurulum dizini).
  * `BASHCLI_ENV` ile başka bir yola yönlendirilebilir — testler bunu
@@ -105,9 +106,20 @@ export interface LlmKwargs {
   apiKey?: string;
 }
 
+/**
+ * Sağlayıcıya ait ortam değişkenleri. Bunlar `.env` dosyalarından YÜKLENMEZ:
+ * sağlayıcı ayarları yalnızca ~/.bashcli/providers.json'da tutulur. (Shell'de
+ * export edilmiş gerçek ortam değişkenleri etkilenmez.) Ayrıca güvenilmeyen
+ * bir projenin .env'inin base URL değiştirip anahtarı yönlendirmesini önler.
+ */
+export function isProviderEnvKey(name: string): boolean {
+  if (name === "PROVIDER" || name === "AGENT_MODEL") return true;
+  return PROVIDERS.some((p) => p.keyEnv === name || p.baseEnv === name);
+}
+
 /** Env'den OpenAiCompatibleLlm'e geçilecek {model, apiBase?, apiKey?}. */
 export function currentLlmKwargs(): LlmKwargs {
-  // Öncelik sırası: kullanıcı cihazındaki kayıt → .env → varsayılanlar.
+  // Öncelik sırası: kullanıcı cihazındaki kayıt → shell ortam değişkenleri → varsayılanlar.
   const user = readUserProvider();
   const spec = PROVIDER_MAP[process.env.PROVIDER ?? "zenmux"] ?? PROVIDER_MAP.zenmux;
 
@@ -156,9 +168,8 @@ export interface ProviderKeyInfo {
  * Tüm sağlayıcıların API anahtarı bilgilerini çözer.
  *
  * Öncelik: kullanıcı cihazındaki kayıt (~/.bashcli/providers.json, yalnızca
- * aktif sağlayıcı için) → ortam değişkeni (spec.keyEnv). Ortam değişkenleri
- * ajanın kendi .env'i ve çalışılan projenin .env'i yüklenmiş olduğu için
- * doludur.
+ * aktif sağlayıcı için) → shell ortam değişkeni (spec.keyEnv). .env
+ * dosyalarındaki sağlayıcı değişkenleri yüklenmez.
  */
 export function listProviderKeys(): ProviderKeyInfo[] {
   const user = readUserProvider();
@@ -423,24 +434,6 @@ export async function fetchModels(
   return [...new Set(ids)].sort();
 }
 
-/** `.env` dosyasındaki anahtarları güncelle/ekle ve process.env'e uygula. */
-export function saveEnv(updates: Record<string, string>): void {
-  let lines: string[] = [];
-  if (existsSync(ENV_PATH)) {
-    lines = readFileSync(ENV_PATH, "utf-8").split("\n");
-    if (lines.length && lines[lines.length - 1] === "") lines.pop();
-  }
-  for (const [key, value] of Object.entries(updates)) {
-    const prefix = `${key}=`;
-    const i = lines.findIndex((l) => l.trimStart().startsWith(prefix));
-    if (i >= 0) lines[i] = `${key}=${value}`;
-    else lines.push(`${key}=${value}`);
-    process.env[key] = value;
-  }
-  writeFileSync(ENV_PATH, lines.join("\n") + "\n", "utf-8");
-}
-
-/** Sağlayıcı seçimini .env'e kaydet. */
 /**
  * Sağlayıcı seçimini kaydeder.
  *

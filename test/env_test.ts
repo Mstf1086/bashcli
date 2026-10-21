@@ -87,20 +87,48 @@ function eq(name: string, actual: unknown, expected: unknown): void {
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// --- 3) Global kullanımda ajan .env'i bulunabilir ------------------------
+// --- 3) .env'den sağlayıcı değişkenleri YÜKLENMEZ -------------------------
 {
-  const { loadAgentEnv } = await import("../src/agent-env.js");
-  const { currentLlmKwargs } = await import("../src/providers.js");
+  const { loadAgentEnv, loadWorkspaceEnv } = await import("../src/agent-env.js");
+  const { currentLlmKwargs, isProviderEnvKey } = await import("../src/providers.js");
 
+  check("env: PROVIDER sağlayıcı anahtarı sayılır", isProviderEnvKey("PROVIDER"));
+  check("env: ZENMUX_API_KEY sağlayıcı anahtarı sayılır", isProviderEnvKey("ZENMUX_API_KEY"));
+  check("env: OPENAI_BASE_URL sağlayıcı anahtarı sayılır", isProviderEnvKey("OPENAI_BASE_URL"));
+  check("env: AGENT_MODE sağlayıcı anahtarı değil", !isProviderEnvKey("AGENT_MODE"));
+
+  const tmp = mkdtempSync(join(tmpdir(), "agent-env3-"));
+  const agentEnv = join(tmp, "agent.env");
+  writeFileSync(agentEnv, [
+    "PROVIDER=openrouter", "AGENT_MODEL=sizinti/model", "OPENROUTER_API_KEY=sk-or-v1-dosyadan",
+    "ZENMUX_API_BASE=https://kotu.example/v1", "CODING_WORKSPACE=/tmp/dayatma", "AGENT_TEST_EXTRA=ok", "",
+  ].join("\n"), "utf-8");
+  const projDir = join(tmp, "proje");
+  mkdirSync(projDir);
+  writeFileSync(join(projDir, ".env"),
+    "OPENAI_BASE_URL=https://kotu.example/v1\nPROJE_AYARI=evet\n", "utf-8");
+
+  const before = { ...process.env };
+  const { ENV_PATH } = await import("../src/providers.js");
+  const { copyFileSync } = await import("node:fs");
+  const saved = ENV_PATH;
+  copyFileSync(agentEnv, saved);           // BASHCLI_ENV geçici dosyası (test_setup)
+  delete process.env.AGENT_TEST_EXTRA;
   loadAgentEnv();
-  const kw = currentLlmKwargs();
+  loadWorkspaceEnv(projDir);
 
-  check("env: PROVIDER yüklendi", !!process.env.PROVIDER, String(process.env.PROVIDER));
-  check("env: AGENT_MODEL yüklendi", !!process.env.AGENT_MODEL, String(process.env.AGENT_MODEL));
-  check("env: API anahtarı yüklendi", !!kw.apiKey);
-  check("env: apiBase yüklendi", !!kw.apiBase, String(kw.apiBase));
-  check("env: model ayarlı", !!kw.model, kw.model);
-  check("env: workspace ajan .env'inden gelmiyor", process.env.CODING_WORKSPACE === undefined);
+  eq("env: .env PROVIDER'ı ezmedi", process.env.PROVIDER, before.PROVIDER);
+  eq("env: .env AGENT_MODEL'i ezmedi", process.env.AGENT_MODEL, before.AGENT_MODEL);
+  check("env: .env'deki API anahtarı yüklenmedi", process.env.OPENROUTER_API_KEY === before.OPENROUTER_API_KEY);
+  eq("env: .env base URL'i ezmedi", process.env.ZENMUX_API_BASE, before.ZENMUX_API_BASE);
+  check("env: proje .env OPENAI_BASE_URL yüklenmedi", process.env.OPENAI_BASE_URL === before.OPENAI_BASE_URL);
+  eq("env: sağlayıcı dışı ajan ayarı yüklendi", process.env.AGENT_TEST_EXTRA, "ok");
+  eq("env: sağlayıcı dışı proje ayarı yüklendi", process.env.PROJE_AYARI, "evet");
+  check("env: workspace ajan .env'inden gelmiyor", process.env.CODING_WORKSPACE !== "/tmp/dayatma");
+
+  const kw = currentLlmKwargs();
+  check("env: model/anahtar/base çözülüyor", !!kw.model && !!kw.apiKey && !!kw.apiBase, kw.model);
+  rmSync(tmp, { recursive: true, force: true });
 }
 
 console.log(`\nSONUÇ: ${passed} geçti, ${failed} başarısız`);
