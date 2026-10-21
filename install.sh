@@ -85,32 +85,71 @@ say "Node.js $(node -v) · npm $(npm -v)"
 [ -f "$TARGET" ] || die "Giriş noktası bulunamadı: $TARGET"
 
 # ----------------------------------------------------------- bağımlılıklar --
-# Kurulum zaten güncelse (package-lock.json değişmediyse) atlanır; yarım kalmış
-# bir node_modules ise silinmeden tamamlanır (npm ci her şeyi silip baştan
-# kurduğu için proot/Termux gibi yavaş dosya sistemlerinde çok uzun sürerdi).
+# Üç ilke (Termux/proot gibi yavaş ortamlar için):
+#  1) Native derleme yok: --ignore-scripts. @google/adk → dockerode → ssh2 →
+#     cpu-features gibi kullanılmayan native modüllerin node-gyp derlemesi
+#     (Node başlıklarını ağdan indirip C++ derler) saatler sürebilir ve takılır.
+#     esbuild gibi gerekli paketler scriptsiz de çalışır; bunu smoke test doğrular.
+#  2) Ağ takılmasın: fetch timeout + yeniden deneme; --loglevel=http ile her
+#     paket isteği görünür, "takıldı mı?" sorusu kalmaz.
+#  3) Tekrarda kurma yok: lock değişmediyse atla; kurulum yalnızca smoke test
+#     geçince "tamam" olarak işaretlenir (yarım kurulum bir daha atlanmaz).
 hash_file() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
   elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
   else cksum "$1" | cut -d' ' -f1,2; fi
 }
+
+# Çalışma zamanı smoke test: prod bağımlılıkları ve giriş noktası yükleniyor mu?
+smoke_test() {
+  ( cd "$ROOT" && node --input-type=module -e '
+      await import("@google/adk");
+      await import("@earendil-works/pi-tui");
+      await import("zod");
+      await import("dotenv");
+      await import("tsx/esm/api");
+    ' ) >/dev/null 2>&1 \
+  && ( cd "$ROOT" && timeout_run node bin/bashcli.mjs --help ) >/dev/null 2>&1
+}
+
+timeout_run() {
+  # Termux'ta `timeout` yoksa doğrudan çalıştır.
+  if command -v timeout >/dev/null 2>&1; then timeout 60 "$@"; else "$@"; fi
+}
+
+npm_deps() {
+  local attempt
+  for attempt in 1 2 3; do
+    say "npm kurulumu (deneme $attempt/3)..."
+    if ( cd "$ROOT" && npm install --omit=dev --no-audit --no-fund --ignore-scripts \
+          --prefer-offline --fetch-retries=5 --fetch-retry-mintimeout=2000 \
+          --fetch-timeout=60000 --loglevel=http ); then
+      return 0
+    fi
+    warn "npm başarısız (deneme $attempt). Yeniden deneniyor..."
+    sleep 3
+  done
+  return 1
+}
+
 STAMP="$ROOT/node_modules/.bashcli-deps"
 LOCK_HASH=""
 [ -f "$ROOT/package-lock.json" ] && LOCK_HASH="$(hash_file "$ROOT/package-lock.json")"
 
-if [ -n "$LOCK_HASH" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$LOCK_HASH" ]; then
+if [ -n "$LOCK_HASH" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$LOCK_HASH" ] && smoke_test; then
   say "Bağımlılıklar güncel, atlanıyor."
 else
-  say "Bağımlılıklar kuruluyor (yavaş cihazlarda — örn. Termux/proot — birkaç dakika sürebilir)..."
-  NPM_FLAGS=(--omit=dev --no-audit --no-fund --prefer-offline)
-  if [ -d "$ROOT/node_modules" ]; then
-    # Var olan kurulum üzerine artımlı kur (silme yok).
-    ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
-  elif [ -f "$ROOT/package-lock.json" ]; then
-    ( cd "$ROOT" && npm ci "${NPM_FLAGS[@]}" ) || ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
-  else
-    ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
+  say "Bağımlılıklar kuruluyor. Yavaş cihazlarda (Termux/proot) birkaç dakika sürebilir;"
+  say "satırlar aktıkça ilerliyor demektir."
+  npm_deps || die "npm kurulumu 3 denemede de başarısız. İnternet bağlantısını kontrol edip aynı komutu tekrar çalıştırın (indirilenler önbellekte kalır)."
+
+  if ! smoke_test; then
+    warn "Smoke test başarısız; esbuild betik kurulumu yeniden deneniyor."
+    ( cd "$ROOT" && npm rebuild esbuild ) || true
+    smoke_test || die "Kurulum doğrulanamadı. Çıktıyı geliştiriciye iletin: (cd $ROOT && node bin/bashcli.mjs --help)"
   fi
   [ -n "$LOCK_HASH" ] && printf '%s\n' "$LOCK_HASH" > "$STAMP"
+  say "Bağımlılıklar hazır."
 fi
 
 # ------------------------------------------------------------------- .env --
