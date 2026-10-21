@@ -21,6 +21,22 @@ git clone <repo> bashcli && cd bashcli
 ./install.sh
 ```
 
+**Tek satır kurulum (önerilen):** dizinleri/dosyaları elle oluşturmanıza gerek yok.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Mstf1086/bashcli/main/get.sh | bash
+```
+
+`get.sh` son sürümü `~/.local/share/bashcli` altına indirir (dizin otomatik
+oluşturulur), `install.sh`'i çalıştırır ve `bashcli` komutunu PATH'e ekler.
+Aynı komutu tekrar çalıştırmak güncelleme yapar (`.env` ve `node_modules`
+korunur). Ek argümanlar `install.sh`'e geçer: `... | bash -s -- --no-path`.
+Kurulum dizini için `BASHCLI_DIR`, dal/etiket için `BASHCLI_REF` kullanılabilir.
+
+Gereken tek şey: Node.js 20.11+ ve `curl`.
+
+**Elle kurulum** (repo klonlanmışsa):
+
 `install.sh` şunları yapar:
 
 1. Node sürümünü ve `npm` varlığını doğrular
@@ -29,6 +45,8 @@ git clone <repo> bashcli && cd bashcli
 4. `~/.local/bin/bashcli` shim'ini yazar — ajanın gerçek giriş noktasına
    (`bin/bashcli.mjs`) yönlendirir, böylece ajan güncellendiğinde shim'e
    dokunmaya gerek kalmaz
+5. `~/.local/bin` PATH'te değilse kabuk rc dosyasına (`~/.bashrc`, `~/.zshrc`
+   veya `~/.profile`) otomatik ekler (`--no-path` ile kapatılır)
 
 Seçenekler:
 

@@ -14,6 +14,7 @@
 #   ./install.sh --npm-global    # `npm install -g .` ile kur
 #   ./install.sh --uninstall     # shim'i kaldır
 #   ./install.sh --no-env        # .env hazırlama (kendi .env'ini yazacaksan)
+#   ./install.sh --no-path       # PATH'i kabuk rc dosyasına otomatik ekleme
 #
 # Kullanıcı kurulumu (root gerektirmez):
 #   git clone <repo> && cd <repo> && ./install.sh
@@ -24,6 +25,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PREFIX="${HOME}/.local"
 USE_NPM_GLOBAL=0
 DO_ENV=1
+DO_PATH=1
 UNINSTALL=0
 
 say()  { printf '\033[36m==>\033[0m %s\n' "$*"; }
@@ -39,6 +41,7 @@ while [ $# -gt 0 ]; do
     --prefix=*)    PREFIX="${arg#*=}"; shift ;;
     --npm-global)  USE_NPM_GLOBAL=1; shift ;;
     --no-env)      DO_ENV=0; shift ;;
+    --no-path)     DO_PATH=0; shift ;;
     --uninstall)   UNINSTALL=1; shift ;;
     -h|--help)
       sed -n '2,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -123,13 +126,32 @@ EOF
 fi
 
 # ------------------------------------------------------------------- PATH --
-case ":$PATH:" in
-  *":$BIN_DIR:"*) ;;
-  *) warn "$BIN_DIR PATH'te değil. Eklemek için:"
-     echo "     export PATH=\"$BIN_DIR:\$PATH\""
-     echo "   Kalıcı olsun istiyorsanız (~/.bashrc):"
-     echo "     echo 'export PATH=\"$BIN_DIR:\$PATH\"' >> ~/.bashrc" ;;
-esac
+# BIN_DIR PATH'te değilse, kullanıcının kabuk rc dosyasına (tekrar eklemeden)
+# otomatik ekler. Kapatmak için: --no-path
+if [ "$USE_NPM_GLOBAL" -eq 0 ]; then
+  case ":$PATH:" in
+    *":$BIN_DIR:"*) ;;
+    *)
+      if [ "$DO_PATH" -eq 1 ]; then
+        case "$(basename "${SHELL:-}")" in
+          zsh)  RC="${ZDOTDIR:-$HOME}/.zshrc" ;;
+          bash) if [ "$(uname)" = "Darwin" ] && [ ! -f "$HOME/.bashrc" ]; then RC="$HOME/.bash_profile"; else RC="$HOME/.bashrc"; fi ;;
+          *)    RC="$HOME/.profile" ;;
+        esac
+        LINE="export PATH=\"$BIN_DIR:\$PATH\""
+        if [ -f "$RC" ] && grep -qF "$BIN_DIR" "$RC" 2>/dev/null; then
+          say "PATH zaten $RC içinde tanımlı."
+        else
+          { printf '\n# bashcli\n%s\n' "$LINE"; } >> "$RC"
+          say "PATH $RC dosyasına eklendi."
+        fi
+        warn "Yeni bir terminal açın ya da şunu çalıştırın:  source $RC"
+      else
+        warn "$BIN_DIR PATH'te değil. Eklemek için:"
+        echo "     export PATH=\"$BIN_DIR:\$PATH\""
+      fi ;;
+  esac
+fi
 
 cat <<EOF
 
