@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Oturum gecmisi (calisma verisi)
+.bashcli/
+
+# NOT: .cline/ (proje kurallari) ve .clineignore depoya DAHILDIR — README
+# bunlara referans veriyor ve proje kurallari her katilimci icin gecerli.

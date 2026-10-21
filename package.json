@@ -1,0 +1,68 @@
+{
+  "name": "bashcli",
+  "version": "0.0.1",
+  "description": "Cline/Claude Code tarzı, TypeScript + Google ADK tabanlı interaktif kodlama ajanı TUI'si",
+  "main": "index.js",
+  "bin": {
+    "bashcli": "./bin/bashcli.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "install.sh",
+    ".env.example",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "cli": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx test/tools_test.ts && tsx test/mock_e2e.ts && tsx test/cli_mock_test.ts && tsx test/env_test.ts && tsx test/slash_color_test.ts && tsx test/editor_color_test.ts && tsx test/theme_test.ts && tsx test/user_config_test.ts && tsx test/provider_verify_test.ts && tsx test/provider_base_test.ts && tsx test/gemini_compat_test.ts && tsx test/provider_keys_test.ts && tsx test/keys_e2e_test.ts && tsx test/project_config_test.ts && tsx test/rules_e2e_test.ts && tsx test/adk_gate_test.ts && tsx test/abort_test.ts && tsx test/tui_test.ts && tsx test/tui_e2e_test.ts && tsx test/tui_exit_test.ts",
+    "test:tools": "tsx test/tools_test.ts",
+    "test:mock": "tsx test/mock_e2e.ts",
+    "test:env": "tsx test/env_test.ts",
+    "test:tui": "tsx test/tui_test.ts && tsx test/tui_e2e_test.ts && tsx test/tui_exit_test.ts",
+    "test:provider": "tsx test/provider_verify_test.ts && tsx test/provider_keys_test.ts",
+    "test:colors": "tsx test/slash_color_test.ts",
+    "test:editor": "tsx test/editor_color_test.ts",
+    "test:theme": "tsx test/theme_test.ts",
+    "test:config": "tsx test/user_config_test.ts",
+    "test:project": "tsx test/project_config_test.ts",
+    "test:adk": "tsx test/adk_gate_test.ts && tsx test/abort_test.ts",
+    "test:base": "tsx test/provider_base_test.ts",
+    "test:gemini": "tsx test/gemini_compat_test.ts"
+  },
+  "keywords": [
+    "bashcli",
+    "cli",
+    "agent",
+    "coding-agent",
+    "tui",
+    "adk",
+    "typescript"
+  ],
+  "author": "Mstf1086",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mstf1086/bashcli.git"
+  },
+  "homepage": "https://github.com/Mstf1086/bashcli#readme",
+  "bugs": {
+    "url": "https://github.com/Mstf1086/bashcli/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "dependencies": {
+    "@earendil-works/pi-tui": "^1.3.0",
+    "@google/adk": "^2.3.0",
+    "@types/node": "^26.6.5",
+    "dotenv": "^18.0.8",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "zod": "^4.6.7"
+  }
+}

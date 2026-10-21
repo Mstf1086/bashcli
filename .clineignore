@@ -1,0 +1,86 @@
+# .clineignore — Cline'ın (ve bu ajanın) modele GÖNDERMEMESİ gereken dosyalar
+#
+# Sözdizim: gitignore ile aynı.
+#   # yorum        → yorum satırı
+#   ad             → her derinlikte aynı adlı dosya/dizin
+#   ad/            → yalnızca dizin
+#   yol/           → köke göreli yol
+#   *.log          → glob
+#   !desen         → istisna (son eşleşen kazanır)
+#
+# Buradaki dosyalar hiçbir aracın çıktısında görünmez ve okunamaz;
+# içerikleri modele hiç ulaşmaz.
+
+# --- Bağımlılıklar ---------------------------------------------------------
+node_modules/
+bower_components/
+vendor/
+.pnp.*
+
+# --- Python sanal ortamları ve önbellekleri --------------------------------
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tox/
+*.egg-info/
+
+# --- Derleme / paketleme çıktıları ----------------------------------------
+dist/
+build/
+out/
+target/
+*.tsbuildinfo
+*.map
+
+# --- Gizli ayarlar (API anahtarları) --------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Sürüm kontrolü -------------------------------------------------------
+.git/
+.gitignore
+.gitattributes
+
+# --- Ajan ayarları ve oturum verisi ---------------------------------------
+# (kurallar zaten sistem talimatına gönderilir; dosya içeriği gereksiz)
+.bashcli/
+.cline/
+
+# --- Loglar ve geçici dosyalar --------------------------------------------
+*.log
+logs/
+tmp/
+temp/
+.cache/
+*.tmp
+*.bak
+*.orig
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Test / kapsama çıktıları ---------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+
+# --- CI / dağıtım ---------------------------------------------------------
+.github/
+.gitlab-ci.yml
+
+# --- Kilit dosyaları ------------------------------------------------------
+# (npm ci için package.json yeterli; kilit dosyası gereksiz token harcar)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# --- Yerel araç yapılandırmaları -----------------------------------------
+.idea/
+.vscode/
+*.swp
