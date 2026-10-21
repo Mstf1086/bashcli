@@ -85,12 +85,32 @@ say "Node.js $(node -v) · npm $(npm -v)"
 [ -f "$TARGET" ] || die "Giriş noktası bulunamadı: $TARGET"
 
 # ----------------------------------------------------------- bağımlılıklar --
-say "Bağımlılıklar kuruluyor (npm ci)..."
-if [ -f "$ROOT/package-lock.json" ] && [ -d "$ROOT/node_modules" ]; then
-  npm ci --omit=dev --no-audit --no-fund 2>/dev/null \
-    || npm install --no-audit --no-fund
+# Kurulum zaten güncelse (package-lock.json değişmediyse) atlanır; yarım kalmış
+# bir node_modules ise silinmeden tamamlanır (npm ci her şeyi silip baştan
+# kurduğu için proot/Termux gibi yavaş dosya sistemlerinde çok uzun sürerdi).
+hash_file() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  else cksum "$1" | cut -d' ' -f1,2; fi
+}
+STAMP="$ROOT/node_modules/.bashcli-deps"
+LOCK_HASH=""
+[ -f "$ROOT/package-lock.json" ] && LOCK_HASH="$(hash_file "$ROOT/package-lock.json")"
+
+if [ -n "$LOCK_HASH" ] && [ -f "$STAMP" ] && [ "$(cat "$STAMP" 2>/dev/null)" = "$LOCK_HASH" ]; then
+  say "Bağımlılıklar güncel, atlanıyor."
 else
-  npm install --no-audit --no-fund
+  say "Bağımlılıklar kuruluyor (yavaş cihazlarda — örn. Termux/proot — birkaç dakika sürebilir)..."
+  NPM_FLAGS=(--omit=dev --no-audit --no-fund --prefer-offline)
+  if [ -d "$ROOT/node_modules" ]; then
+    # Var olan kurulum üzerine artımlı kur (silme yok).
+    ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
+  elif [ -f "$ROOT/package-lock.json" ]; then
+    ( cd "$ROOT" && npm ci "${NPM_FLAGS[@]}" ) || ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
+  else
+    ( cd "$ROOT" && npm install "${NPM_FLAGS[@]}" )
+  fi
+  [ -n "$LOCK_HASH" ] && printf '%s\n' "$LOCK_HASH" > "$STAMP"
 fi
 
 # ------------------------------------------------------------------- .env --
