@@ -108,6 +108,7 @@ Ayarlar:
 | `AGENT_NUM_RETRIES` | `5` | Geçici hatalarda (429/5xx) yeniden deneme sayısı. |
 | `AGENT_DEBUG` | — | `1` ise LLM hatalarını stderr'e yazar. |
 | `BASHCLI_HOME` | ev dizini | Kullanıcı ayarlarının (API anahtarı) tutulduğu kök dizin. Testler bunu geçici bir dizine yönlendirir. |
+| `BASHCLI_ENV` | ajan kökündeki `.env` | Ajanın kendi `.env` dosyasının yolu. Testler bunu geçici bir dosyaya yönlendirir. |
 
 ### Sağlayıcı taban URL'leri
 

@@ -1,13 +1,24 @@
 // LLM sağlayıcı kayıt defteri: Python providers.py'nin TS karşılığı.
 // Sağlayıcı seçimi + model listeleme + .env kaydı.
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readUserProvider, saveUserProvider } from "./user-config.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const PROJECT_ROOT = join(HERE, "..");
-export const ENV_PATH = join(PROJECT_ROOT, ".env");
+
+/**
+ * Ajanın kendi .env dosyasının yolu.
+ *
+ * Varsayılan: ajan kökündeki `.env` (kurulum dizini).
+ * `BASHCLI_ENV` ile başka bir yola yönlendirilebilir — testler bunu
+ * geçici bir dosyaya çekerek gerçek kullanıcı ayarlarına dokunmadan
+ * hermetik çalışır (`BASHCLI_HOME` ile aynı deseni paylaşır).
+ */
+export const ENV_PATH = process.env.BASHCLI_ENV
+  ? resolve(process.env.BASHCLI_ENV)
+  : join(PROJECT_ROOT, ".env");
 
 export interface ProviderSpec {
   key: string;
