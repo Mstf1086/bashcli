@@ -13,13 +13,17 @@
 //
 // Kullanım: bu dosya, ilgili test dosyasının İLK import'u olmalıdır (ESM'de
 // import'lar kaynak sırasına göre değerlendirilir).
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 if (!process.env.BASHCLI_HOME) {
   process.env.BASHCLI_HOME = mkdtempSync(join(tmpdir(), "bashcli-home-"));
 }
+
+// BASHCLI_HOME dışarıdan verilmiş olabilir (CI) ve dizin henüz yoktur;
+// altına yazacağımız geçici .env için dizini garanti ediyoruz.
+mkdirSync(process.env.BASHCLI_HOME, { recursive: true });
 
 if (!process.env.BASHCLI_ENV) {
   const tmpEnv = join(process.env.BASHCLI_HOME, "agent.env");
