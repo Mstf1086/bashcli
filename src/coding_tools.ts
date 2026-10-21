@@ -1,7 +1,9 @@
 // Dosya/komut araç çekirdeği (Python coding_tools.py'nin TS karşılığı).
 // Tüm yollar WORKSPACE_ROOT (CODING_WORKSPACE env veya ~) içine hapsedilir.
 import { execFile } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { isIgnoredAbsolute, isIgnoredPath } from "./project-config.js";
@@ -14,12 +16,44 @@ const NL = "\n";
 const MAX_OUTPUT_CHARS = 12_000;
 export const MAX_READ_LINES = 2_000;
 
+function isInside(root: string, p: string): boolean {
+  if (p === root) return true;
+  const base = root.endsWith(sep) ? root : root + sep;
+  return p.startsWith(base);
+}
+
+/** Yol yoksa, var olan en yakın üst dizinin gerçek (symlink çözülmüş) yolunu döner. */
+function realOrNearest(p: string): string {
+  let cur = p;
+  const tail: string[] = [];
+  for (;;) {
+    try {
+      return join(realpathSync(cur), ...tail.reverse());
+    } catch {
+      const parent = dirname(cur);
+      if (parent === cur) return p;
+      tail.push(cur.slice(parent.length).replace(/^[\\/]+/, ""));
+      cur = parent;
+    }
+  }
+}
+
 /** Kullanıcı yolunu çözümle; çalışma alanı dışını reddet. */
 export function resolveIn(path: string): string {
   const root = workspaceRoot();
-  const p = resolve(root, path.startsWith("~") ? join(homedir(), path.slice(1)) : path);
-  if (p !== root && !p.startsWith(root + "/")) {
+  // Yalnızca "~" ve "~/..." ev dizinidir; "~foo" sıradan bir dosya adıdır.
+  const expanded = path === "~" || path.startsWith("~/")
+    ? join(homedir(), path.slice(1))
+    : path;
+  const p = resolve(root, expanded);
+  if (!isInside(root, p)) {
     throw new Error(`Yol çalışma alanı dışında: ${path} (kök: ${root})`);
+  }
+  // Sembolik bağ kaçışı: var olan en yakın üst öğenin gerçek yolu da kök içinde olmalı.
+  const real = realOrNearest(p);
+  const realRoot = realOrNearest(root);
+  if (!isInside(realRoot, real)) {
+    throw new Error(`Yol çalışma alanı dışına işaret ediyor (sembolik bağ): ${path}`);
   }
   return p;
 }
@@ -95,15 +129,23 @@ export function readFile(path: string, offset = 1, limit: number = MAX_READ_LINE
     return `Hata: ${path} ignore listesinde; icerigi modele gonderilemez.`;
   }
   const all = readFileSync(full, "utf-8").split(NL);
-  const start = Math.max(0, offset - 1);
+  const start = Math.max(0, (Number.isFinite(offset) ? offset : 1) - 1);
+  limit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, MAX_READ_LINES) : MAX_READ_LINES;
   const slice = all.slice(start, start + limit);
   let out = slice.map((l, i) => `${start + i + 1}: ${l}`).join(NL);
   if (start + limit < all.length) out += NL + `... (${all.length} satirin bir kismi)`;
   return truncate(out);
 }
 
+/** Ajanın yazmasına izin verilmeyen yollar (.git: hook/config ile kod çalıştırma riski). */
+function isWriteProtected(full: string): boolean {
+  const rel = relative(workspaceRoot(), full).split(sep);
+  return rel.includes(".git");
+}
+
 export function writeFile(path: string, content: string): string {
   const full = resolveIn(path);
+  if (isWriteProtected(full)) return `Hata: ${path} korumali (.git); yazilamaz.`;
   mkdirSync(dirname(full), { recursive: true });
   writeFileSync(full, content, "utf-8");
   return `Yazildi: ${path} (${content.length} karakter)`;
@@ -111,12 +153,14 @@ export function writeFile(path: string, content: string): string {
 
 export function editFile(path: string, oldStr: string, newStr: string): string {
   const full = resolveIn(path);
+  if (isWriteProtected(full)) return `Hata: ${path} korumali (.git); duzenlenemez.`;
   if (!existsSync(full)) return `Hata: Dosya bulunamadi: ${path}`;
   const raw = readFileSync(full, "utf-8");
   const count = raw.split(oldStr).length - 1;
   if (count === 0) return "Hata: old_str bulunamadi; once read_file ile okuyun.";
   if (count > 1) return `Hata: old_str ${count} kez geciyor; benzersiz blok verin.`;
-  writeFileSync(full, raw.replace(oldStr, newStr), "utf-8");
+  // Fonksiyonla değiştir: newStr içindeki `$&`, `$1`, `$$` kalıpları özel yorumlanmasın.
+  writeFileSync(full, raw.replace(oldStr, () => newStr), "utf-8");
   return `Duzenlendi: ${path}`;
 }
 
@@ -182,7 +226,10 @@ export function runCommand(
         ...(signal ? { signal } : {}),
       },
       (err, stdout, stderr) => {
-        const code = (err as { code?: number } | null)?.code;
+        const e = err as { code?: number | string; killed?: boolean; signal?: string } | null;
+        const code = e?.killed
+          ? `zaman asimi/sonlandirildi${e.signal ? ` (${e.signal})` : ""}`
+          : e?.code;
         const out = (stdout ?? "") + (stderr ? "[stderr]" + NL + stderr : "");
         if (signal?.aborted) {
           resolveP(`$ ${command}` + NL + "(iptal edildi)");

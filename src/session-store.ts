@@ -39,7 +39,12 @@ interface SavedSession {
 
 /** Oturum dizinini oluşturur (yoksa). */
 function ensureDir(): void {
-  if (!existsSync(SESSION_DIR)) mkdirSync(SESSION_DIR, { recursive: true });
+  if (!existsSync(SESSION_DIR)) mkdirSync(SESSION_DIR, { recursive: true, mode: 0o700 });
+}
+
+/** Oturum kimliği dosya adı olarak güvenli mi? (yol geçişini önler) */
+function safeId(id: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(id) && id !== "." && id !== "..";
 }
 
 /**
@@ -56,6 +61,7 @@ export function saveSession(session: {
   events?: unknown[];
 }): void {
   try {
+    if (!safeId(session.id)) return;
     ensureDir();
     const payload: SavedSession = {
       id: session.id,
@@ -69,7 +75,7 @@ export function saveSession(session: {
     writeFileSync(
       join(SESSION_DIR, `${session.id}.json`),
       redactSecrets(JSON.stringify(payload)),
-      "utf-8",
+      { encoding: "utf-8", mode: 0o600 },
     );
   } catch {
     // yoksay
@@ -124,6 +130,7 @@ export function listSavedSessions(): SavedSessionInfo[] {
 /** Kaydedilmiş bir oturumun event'lerini okur. */
 export function loadSavedEvents(sessionId: string): unknown[] {
   try {
+    if (!safeId(sessionId)) return [];
     const path = join(SESSION_DIR, `${sessionId}.json`);
     if (!existsSync(path)) return [];
     const data = JSON.parse(readFileSync(path, "utf-8")) as SavedSession;

@@ -407,6 +407,6 @@ export function isIgnoredPath(path: string, isDir: boolean): boolean {
 export function isIgnoredAbsolute(absolute: string, isDir: boolean): boolean {
   const root = workspaceRoot();
   const rel = relative(root, absolute);
-  if (!rel || rel.startsWith("..")) return false;
+  if (!rel || rel === ".." || rel.startsWith(".." + sep)) return false;
   return isIgnoredPath(rel, isDir);
 }
