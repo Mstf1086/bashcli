@@ -1245,8 +1245,9 @@ export class TuiApp {
     this.transcript.addNotice(`Geçmiş sıkıştırılıyor (${lines.length} parça)…`);
     this.tui.requestRender();
 
+    // Build mod yerine plan mod kullan: sadece özet isteriz, araç gerekmez.
     const tmpRunner = new Runner({
-      agent: createAgent("build"),
+      agent: createAgent("plan"),
       sessionService: this.state.svc,
       appName: APP_NAME,
     });
@@ -1261,14 +1262,26 @@ export class TuiApp {
           text: "Aşağıdaki kodlama-ajanı sohbetini, devam eden iş için gerekli tüm bağlamı "
             + "(dosya adları, kararlar, yapılan değişiklikler, açık görevler) koruyacak şekilde "
             + "kısa bir özet haline getir. Yalnızca özeti yaz.\n\n"
-            + lines.join("\n"),
+            + lines.join("\n").slice(-24000),
         }],
       },
     })) {
+      if (event.errorCode) {
+        this.transcript.addNotice(
+          describeError(new Error(event.errorMessage ?? event.errorCode), event.errorCode), "error",
+        );
+        this.tui.requestRender();
+        return;
+      }
       for (const p of event.content?.parts ?? []) {
         const t = (p as { text?: string }).text;
         if (t) summary += t;
       }
+    }
+    if (!summary.trim()) {
+      this.transcript.addNotice("Özet için yeterli içerik bulunamadı; oturum korunuyor.", "error");
+      this.tui.requestRender();
+      return;
     }
     this.state.summary = summary.trim();
     this.state.sessionId = (

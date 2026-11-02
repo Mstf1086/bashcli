@@ -525,8 +525,9 @@ async function cmdCompact(s: CliState): Promise<void> {
   }
   if (!lines.length) { console.log(`${DIM}Sıkıştırılacak geçmiş yok.${RESET}`); return; }
   console.log(`${DIM}Geçmiş sıkıştırılıyor (${lines.length} parça)...${RESET}`);
-  // Özet için doğrudan modele sor (araçsız tek çağrı)
-  const tmpRunner = new Runner({ agent: createAgent("build"), sessionService: s.svc, appName: APP_NAME });
+  // Özet için doğrudan modele sor (araçsız tek çağrı).
+  // Build mod yerine plan mod kullan: sadece özet isteriz, dosya yazma/işlem gerekmez.
+  const tmpRunner = new Runner({ agent: createAgent("plan"), sessionService: s.svc, appName: APP_NAME });
   const tmp = await s.svc.createSession({ appName: APP_NAME, userId: USER_ID });
   let summary = "";
   for await (const event of tmpRunner.runAsync({
@@ -541,10 +542,18 @@ async function cmdCompact(s: CliState): Promise<void> {
       }],
     },
   })) {
+    if (event.errorCode) {
+      console.log(`${RED}${describeError(new Error(event.errorMessage ?? event.errorCode), event.errorCode)}${RESET}`);
+      return;
+    }
     for (const p of event.content?.parts ?? []) {
       const t = (p as { text?: string }).text;
       if (t) summary += t;
     }
+  }
+  if (!summary.trim()) {
+    console.log(`${DIM}Özet için yeterli içerik bulunamadı; oturum korunuyor.${RESET}`);
+    return;
   }
   s.summary = summary.trim();
   s.sessionId = (await s.svc.createSession({ appName: APP_NAME, userId: USER_ID })).id;
